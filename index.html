@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
+    <title>ZozoBlast</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <meta name="theme-color" content="#0d121d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ZozoBlast">
+    <meta name="mobile-web-app-capable" content="yes">
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; background: #0d121d; overflow: hidden; }
+      #unity-container { width: 100%; height: 100%; position: relative; }
+      #unity-canvas { display: block; width: 100%; height: 100%; background: #0d121d; }
+      #unity-loading-bar { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: none; }
+      #unity-progress-bar-empty { width: 200px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+      #unity-progress-bar-full { width: 0%; height: 100%; background: #fff; transition: width 0.15s; }
+      #unity-warning { position: absolute; left: 50%; top: 20px; transform: translateX(-50%); }
+    </style>
+  </head>
+  <body>
+    <div id="unity-container">
+      <canvas id="unity-canvas" tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"></div>
+    </div>
+    <script>
+      var canvas = document.querySelector("#unity-canvas");
+
+      function unityShowBanner(msg, type) {
+        console.warn('[Unity banner]', type || 'info', msg);
+      }
+
+      window.addEventListener('error', function (e) {
+        console.warn('[window.onerror]', e && e.message ? e.message : e);
+        e.preventDefault();
+        return true;
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        console.warn('[unhandledrejection]', e && e.reason ? e.reason : e);
+        e.preventDefault();
+      });
+
+      var buildUrl = "Build";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/WebGL.data",
+        frameworkUrl: buildUrl + "/WebGL.framework.js",
+        codeUrl: buildUrl + "/WebGL.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Olivier _ Zozo",
+        productName: "ZozoBlast",
+        productVersion: "1.0",
+        showBanner: unityShowBanner,
+        autoSyncPersistentDataPath: true,
+        errorHandler: function (err, url, line) {
+          console.warn('[Unity error]', err, url, line);
+          return true;
+        },
+      };
+
+      document.querySelector("#unity-loading-bar").style.display = "block";
+
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      function hideLoadingBar() {
+        loadingBar.style.display = "none";
+      }
+
+      var script = document.createElement("script");
+      script.src = buildUrl + "/WebGL.loader.js";
+      script.onload = function () {
+        createUnityInstance(canvas, config, function (progress) {
+          progressBarFull.style.width = (100 * progress) + "%";
+          if (progress >= 1) hideLoadingBar();
+        }).then(hideLoadingBar).catch(function (message) {
+          console.warn('[createUnityInstance failed]', message);
+          hideLoadingBar();
+        });
+      };
+      script.onerror = function () {
+        console.warn('[loader script failed to load]');
+        hideLoadingBar();
+      };
+      document.body.appendChild(script);
+
+      // iOS Safari requires the AudioContext to be unlocked by playing a
+      // silent buffer inside a real user gesture — calling resume() alone is
+      // not enough. We do this once on the first gesture, then keep calling
+      // resume() on every subsequent gesture in case the context gets
+      // suspended again (backgrounding, bfcache restore, etc).
+      var hasPlayedSilentBuffer = false;
+      function unlockAudio() {
+        try {
+          if (typeof WEBAudio === 'undefined' || !WEBAudio.audioContext) return;
+          var ctx = WEBAudio.audioContext;
+          if (typeof ctx.resume === 'function') ctx.resume();
+          if (!hasPlayedSilentBuffer && typeof ctx.createBuffer === 'function') {
+            var buffer = ctx.createBuffer(1, 1, 22050);
+            var source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+            if (typeof source.start === 'function') source.start(0);
+            else if (typeof source.noteOn === 'function') source.noteOn(0);
+            hasPlayedSilentBuffer = true;
+            console.log('[audio unlock] silent buffer played, ctx state:', ctx.state);
+          }
+        } catch (e) {
+          console.warn('[audio unlock] failed:', e && e.message);
+        }
+      }
+      var unlockEvents = ['pointerdown', 'touchstart', 'touchend', 'mousedown', 'keydown'];
+      unlockEvents.forEach(function (eventName) {
+        document.addEventListener(eventName, unlockAudio, { capture: true, passive: true });
+      });
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) unlockAudio();
+      });
+      window.addEventListener('pageshow', unlockAudio);
+
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('sw.js').catch(function (err) {
+            console.warn('Service worker registration failed:', err);
+          });
+        });
+      }
+    </script>
+  </body>
+</html>
