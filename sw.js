@@ -1,6 +1,6 @@
 // ZozoBlast service worker — caches the WebGL build for offline play.
 // CACHE_VERSION is auto-rewritten to the git short SHA by scripts/deploy.sh.
-const CACHE_VERSION = 'zozoblast-ec551b7';
+const CACHE_VERSION = 'zozoblast-300d6d2';
 // Unity WebGL build files are matched by prefix at fetch time (see below),
 // not pre-listed here, so the cache keeps working if the Unity output name
 // or sub-folder ever changes.
