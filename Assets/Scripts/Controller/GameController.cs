@@ -67,7 +67,7 @@ namespace Blockblast.Controller
             (scoreText, scoreRect) = UIBuilder.BuildScoreText(rootCanvas.transform);
             bestScoreText = UIBuilder.BuildBestScoreText(rootCanvas.transform);
             gridView = UIBuilder.BuildGridView(rootCanvas.transform);
-            trayView = UIBuilder.BuildTrayView(rootCanvas.transform, rootCanvas, GridView.CellSize);
+            trayView = UIBuilder.BuildTrayView(rootCanvas.transform, rootCanvas, GridView.CellSize, GenerateNextPiece);
             RectTransform celebrationOverlayRect = UIBuilder.BuildCelebrationOverlay(rootCanvas.transform);
             UIBuilder.BuildNewGameButton(rootCanvas.transform, StartNewGame);
             gameOverPanel = UIBuilder.BuildGameOverPanel(rootCanvas.transform);
@@ -117,6 +117,11 @@ namespace Blockblast.Controller
             trayView.ClearAll();
             trayView.SpawnAll();
             PersistGameState();
+        }
+
+        private Piece GenerateNextPiece()
+        {
+            return PieceShapes.PickForContext(currentLevel, grid);
         }
 
         private void AttachPieceHandlers(PieceView pieceView)

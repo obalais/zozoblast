@@ -235,11 +235,8 @@ namespace Blockblast.View
                 }
             }
 
-            float elapsed = 0f;
-            while (elapsed < ThemeTransitionDuration)
+            yield return TweenUtils.LerpEased(ThemeTransitionDuration, eased =>
             {
-                float t = elapsed / ThemeTransitionDuration;
-                float eased = Mathf.SmoothStep(0f, 1f, t);
                 if (gridBackground != null) gridBackground.color = Color.Lerp(startGridBg, targetGridBg, eased);
                 for (int y = 0; y < Grid.Size; y++)
                 {
@@ -248,18 +245,7 @@ namespace Blockblast.View
                         cellImages[x, y].color = Color.Lerp(startColors[x, y], targetColors[x, y], eased);
                     }
                 }
-                elapsed += Time.deltaTime;
-                yield return null;
-            }
-
-            if (gridBackground != null) gridBackground.color = targetGridBg;
-            for (int y = 0; y < Grid.Size; y++)
-            {
-                for (int x = 0; x < Grid.Size; x++)
-                {
-                    cellImages[x, y].color = targetColors[x, y];
-                }
-            }
+            });
             themeTransitionRoutine = null;
         }
 

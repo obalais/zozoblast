@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using Blockblast.Model;
 using UnityEngine;
@@ -11,6 +12,7 @@ namespace Blockblast.View
         private const int SlotCount = 3;
         private const float TrayHeight = 360f;
         private const float SlotSpacing = 24f;
+        private const float RelayoutAnimDuration = 0.18f;
 
         private RectTransform trayRect;
         private Image trayBackground;
@@ -19,13 +21,19 @@ namespace Blockblast.View
         private Canvas rootCanvas;
         private float gridCellSize;
         private Theme currentTheme;
+        private Func<Piece> pieceFactory;
+        private Coroutine relayoutRoutine;
+        private readonly int[] activeSlotIndicesBuffer = new int[SlotCount];
+        private readonly float[] activeSlotTargetsBuffer = new float[SlotCount];
+        private readonly float[] animationStartsBuffer = new float[SlotCount];
 
         public event Action<PieceView> PieceSpawned;
 
-        public void Build(Transform parent, Canvas canvas, float cellSize)
+        public void Build(Transform parent, Canvas canvas, float cellSize, Func<Piece> pieceFactory)
         {
             rootCanvas = canvas;
             gridCellSize = cellSize;
+            this.pieceFactory = pieceFactory;
 
             var go = new GameObject("PieceTrayView", typeof(RectTransform), typeof(Image));
             go.transform.SetParent(parent, false);
@@ -58,15 +66,23 @@ namespace Blockblast.View
 
         public void SpawnAll()
         {
+            // Anchors may still reflect 2-piece spacing from the previous
+            // round; reset before spawning so pieces appear at correct
+            // positions immediately.
             for (int slotIndex = 0; slotIndex < SlotCount; slotIndex++)
             {
-                SpawnInSlot(slotIndex, PieceShapes.Random());
+                SetSlotAnchorX(slotRects[slotIndex], (slotIndex + 0.5f) / SlotCount);
+            }
+            for (int slotIndex = 0; slotIndex < SlotCount; slotIndex++)
+            {
+                SpawnInSlot(slotIndex, pieceFactory());
             }
         }
 
         public void SpawnSpecific(int slotIndex, Piece piece)
         {
             SpawnInSlot(slotIndex, piece);
+            RelayoutSlots(animate: false);
         }
 
         public IReadOnlyList<Piece?> SnapshotCurrentPieces()
@@ -94,6 +110,10 @@ namespace Blockblast.View
             if (AllSlotsEmpty())
             {
                 SpawnAll();
+            }
+            else
+            {
+                RelayoutSlots(animate: true);
             }
         }
 
@@ -182,6 +202,76 @@ namespace Blockblast.View
                 if (piece != null) return false;
             }
             return true;
+        }
+
+        private void RelayoutSlots(bool animate)
+        {
+            if (slotRects == null) return;
+            if (relayoutRoutine != null)
+            {
+                StopCoroutine(relayoutRoutine);
+                relayoutRoutine = null;
+            }
+            if (!animate || !gameObject.activeInHierarchy)
+            {
+                SnapSlotsToTargets();
+                return;
+            }
+            relayoutRoutine = StartCoroutine(AnimateRelayoutRoutine());
+        }
+
+        private void SnapSlotsToTargets()
+        {
+            int count = GatherActiveSlotTargets();
+            for (int i = 0; i < count; i++)
+            {
+                SetSlotAnchorX(slotRects[activeSlotIndicesBuffer[i]], activeSlotTargetsBuffer[i]);
+            }
+        }
+
+        private IEnumerator AnimateRelayoutRoutine()
+        {
+            int count = GatherActiveSlotTargets();
+            if (count == 0) { relayoutRoutine = null; yield break; }
+
+            for (int i = 0; i < count; i++)
+            {
+                animationStartsBuffer[i] = slotRects[activeSlotIndicesBuffer[i]].anchorMin.x;
+            }
+
+            yield return TweenUtils.LerpEased(RelayoutAnimDuration, eased =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    float x = Mathf.Lerp(animationStartsBuffer[i], activeSlotTargetsBuffer[i], eased);
+                    SetSlotAnchorX(slotRects[activeSlotIndicesBuffer[i]], x);
+                }
+            });
+            relayoutRoutine = null;
+        }
+
+        private int GatherActiveSlotTargets()
+        {
+            int count = 0;
+            for (int i = 0; i < SlotCount; i++)
+            {
+                if (currentPieces[i] != null)
+                {
+                    activeSlotIndicesBuffer[count] = i;
+                    count++;
+                }
+            }
+            for (int i = 0; i < count; i++)
+            {
+                activeSlotTargetsBuffer[i] = (i + 0.5f) / count;
+            }
+            return count;
+        }
+
+        private static void SetSlotAnchorX(RectTransform rect, float x)
+        {
+            rect.anchorMin = new Vector2(x, 0.5f);
+            rect.anchorMax = new Vector2(x, 0.5f);
         }
     }
 }

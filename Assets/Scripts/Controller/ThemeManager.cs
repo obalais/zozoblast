@@ -21,12 +21,12 @@ namespace Blockblast.Controller
             ),
             new Theme(
                 name: "Pastel",
-                colorFilter: original => Color.Lerp(original, Color.white, 0.45f),
-                backgroundColor: new Color(0.94f, 0.90f, 0.86f, 1f),
-                gridBackgroundColor: new Color(0.83f, 0.78f, 0.74f, 1f),
-                emptyCellColor: new Color(0.74f, 0.70f, 0.68f, 1f),
-                scoreTextColor: new Color(0.30f, 0.22f, 0.34f, 1f),
-                celebrationAccentColor: new Color(0.85f, 0.65f, 0.85f, 1f)
+                colorFilter: original => Color.Lerp(original, Color.white, 0.30f),
+                backgroundColor: new Color(0.13f, 0.10f, 0.18f, 1f),
+                gridBackgroundColor: new Color(0.20f, 0.16f, 0.26f, 1f),
+                emptyCellColor: new Color(0.32f, 0.26f, 0.40f, 1f),
+                scoreTextColor: new Color(0.96f, 0.92f, 0.98f, 1f),
+                celebrationAccentColor: new Color(0.95f, 0.75f, 0.95f, 1f)
             ),
             new Theme(
                 name: "Or",

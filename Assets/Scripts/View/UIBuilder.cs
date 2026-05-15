@@ -1,3 +1,5 @@
+using System;
+using Blockblast.Model;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
@@ -15,7 +17,7 @@ namespace Blockblast.View
 
         public static void BuildEventSystem()
         {
-            if (Object.FindAnyObjectByType<EventSystem>() != null) return;
+            if (UnityEngine.Object.FindAnyObjectByType<EventSystem>() != null) return;
 
             var eventSystemGo = new GameObject("EventSystem", typeof(EventSystem));
 #if ENABLE_INPUT_SYSTEM
@@ -149,7 +151,7 @@ namespace Blockblast.View
             return gridView;
         }
 
-        public static PieceTrayView BuildTrayView(Transform parent, Canvas rootCanvas, float cellSize)
+        public static PieceTrayView BuildTrayView(Transform parent, Canvas rootCanvas, float cellSize, Func<Piece> pieceFactory)
         {
             var trayHostGo = new GameObject("TrayHost", typeof(RectTransform));
             trayHostGo.transform.SetParent(parent, false);
@@ -162,7 +164,7 @@ namespace Blockblast.View
             trayHostRect.sizeDelta = Vector2.zero;
 
             var trayView = trayHostGo.AddComponent<PieceTrayView>();
-            trayView.Build(trayHostGo.transform, rootCanvas, cellSize);
+            trayView.Build(trayHostGo.transform, rootCanvas, cellSize, pieceFactory);
             return trayView;
         }
 
