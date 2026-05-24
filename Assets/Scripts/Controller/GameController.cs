@@ -196,9 +196,10 @@ namespace Blockblast.Controller
 
             List<int> fullRows = grid.GetFullRows();
             List<int> fullColumns = grid.GetFullColumns();
-            bool hasLinesToClear = fullRows.Count > 0 || fullColumns.Count > 0;
-            bool isDynamicClear = (fullRows.Count + fullColumns.Count) >= 2;
-            int clearBonus = hasLinesToClear ? (fullRows.Count + fullColumns.Count) * LineClearScore : 0;
+            int comboCount = fullRows.Count + fullColumns.Count;
+            bool hasLinesToClear = comboCount > 0;
+            int comboMultiplier = comboCount >= 2 ? comboCount : 1;
+            int clearBonus = hasLinesToClear ? comboCount * LineClearScore * comboMultiplier : 0;
 
             trayView.NotifyPiecePlaced(pieceView);
 
@@ -206,12 +207,13 @@ namespace Blockblast.Controller
             {
                 scoreboardEffects.BumpScore(big: false, accentColor: scoreText.color);
                 audioManager.PlayClear();
-                if (isDynamicClear)
+                if (comboCount >= 2)
                 {
-                    scoreboardEffects.PulseBackground();
-                    scoreboardEffects.ShowFloatingBonus(clearBonus, ThemeManager.GetForLevel(currentLevel).CelebrationAccentColor);
+                    Color comboAccentColor = ThemeManager.GetForLevel(currentLevel).CelebrationAccentColor;
+                    scoreboardEffects.PulseBackground(comboCount);
+                    scoreboardEffects.ShowFloatingBonus(clearBonus, comboMultiplier, comboAccentColor);
                 }
-                StartCoroutine(AnimateThenClearAndApplyBonus(fullRows, fullColumns, clearBonus, isDynamicClear));
+                StartCoroutine(AnimateThenClearAndApplyBonus(fullRows, fullColumns, clearBonus, comboCount));
             }
             else
             {
@@ -221,9 +223,9 @@ namespace Blockblast.Controller
             }
         }
 
-        private IEnumerator AnimateThenClearAndApplyBonus(List<int> fullRows, List<int> fullColumns, int clearBonus, bool dynamicClear)
+        private IEnumerator AnimateThenClearAndApplyBonus(List<int> fullRows, List<int> fullColumns, int clearBonus, int comboCount)
         {
-            yield return StartCoroutine(gridView.AnimateLineClear(fullRows, fullColumns, dynamicClear));
+            yield return StartCoroutine(gridView.AnimateLineClear(fullRows, fullColumns, comboCount));
             grid.ClearLines(fullRows, fullColumns);
             gridView.Render(grid);
             currentScore += clearBonus;

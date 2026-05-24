@@ -30,9 +30,9 @@ namespace Blockblast.View
             bumpRoutine = coroutineHost.StartCoroutine(BumpScoreRoutine(big, accentColor));
         }
 
-        public void PulseBackground()
+        public void PulseBackground(int comboCount)
         {
-            coroutineHost.StartCoroutine(PulseBackgroundRoutine());
+            coroutineHost.StartCoroutine(PulseBackgroundRoutine(comboCount));
         }
 
         public void ShowLevelCelebration(string themeName, Color accentColor)
@@ -47,15 +47,19 @@ namespace Blockblast.View
             ));
         }
 
-        public void ShowFloatingBonus(int bonusPoints, Color accentColor)
+        public void ShowFloatingBonus(int bonusPoints, int comboMultiplier, Color accentColor)
         {
+            string bonusText = comboMultiplier > 1 ? $"×{comboMultiplier}   +{bonusPoints}" : $"+{bonusPoints}";
+            int bonusFontSize = comboMultiplier >= 4 ? 180 : comboMultiplier >= 3 ? 160 : comboMultiplier >= 2 ? 145 : 130;
+            float bonusHoldDuration = comboMultiplier >= 3 ? 1.2f : 0.9f;
+            float bonusRiseDistance = comboMultiplier >= 3 ? 260f : 220f;
             coroutineHost.StartCoroutine(SpawnFloatingTextRoutine(
-                text: $"+{bonusPoints}",
+                text: bonusText,
                 color: accentColor,
-                fontSize: 130,
+                fontSize: bonusFontSize,
                 startAnchoredY: 80f,
-                riseDistance: 220f,
-                holdDuration: 0.9f
+                riseDistance: bonusRiseDistance,
+                holdDuration: bonusHoldDuration
             ));
         }
 
@@ -81,16 +85,18 @@ namespace Blockblast.View
             bumpRoutine = null;
         }
 
-        private IEnumerator PulseBackgroundRoutine()
+        private IEnumerator PulseBackgroundRoutine(int comboCount)
         {
             if (backgroundImage == null) yield break;
+            float pulseIntensity = Mathf.Clamp01((comboCount - 1) / 3f);
+            float pulseStrength = Mathf.Lerp(0.08f, 0.22f, pulseIntensity);
+            float pulseDuration = Mathf.Lerp(0.20f, 0.40f, pulseIntensity);
             Color baseColor = backgroundImage.color;
-            Color pulseColor = Color.Lerp(baseColor, Color.white, 0.08f);
-            float duration = 0.2f;
+            Color pulseColor = Color.Lerp(baseColor, Color.white, pulseStrength);
             float elapsed = 0f;
-            while (elapsed < duration)
+            while (elapsed < pulseDuration)
             {
-                float t = elapsed / duration;
+                float t = elapsed / pulseDuration;
                 float curve = 4f * t * (1f - t);
                 backgroundImage.color = Color.Lerp(baseColor, pulseColor, curve);
                 elapsed += Time.deltaTime;

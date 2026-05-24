@@ -91,10 +91,17 @@ namespace Blockblast.View
             themeTransitionRoutine = StartCoroutine(TransitionToTheme(nextTheme));
         }
 
-        public IEnumerator AnimateLineClear(List<int> rows, List<int> columns, bool dynamic)
+        public IEnumerator AnimateLineClear(List<int> rows, List<int> columns, int comboCount)
         {
-            float duration = dynamic ? 0.42f : 0.28f;
-            float finalScale = dynamic ? 0.20f : 0.55f;
+            float comboIntensity = Mathf.Clamp01((comboCount - 1) / 3f);
+            float baseDuration = Mathf.Lerp(0.28f, 0.62f, comboIntensity);
+            float finalCellScale = Mathf.Lerp(0.55f, 0.10f, comboIntensity);
+            float peakCellScale = 1f + 0.22f * comboIntensity;
+            float flashPhaseRatio = Mathf.Lerp(0.30f, 0.50f, comboIntensity);
+            float punchPhaseRatio = comboCount >= 2 ? 0.22f : 0f;
+            float maxWaveDelay = 0.10f * comboIntensity;
+            Color accentColor = currentTheme != null ? currentTheme.CelebrationAccentColor : Color.white;
+            Color flashColor = Color.Lerp(Color.white, accentColor, comboIntensity * 0.45f);
 
             var animatedCells = new HashSet<Vector2Int>();
             foreach (int rowIndex in rows)
@@ -114,33 +121,55 @@ namespace Blockblast.View
 
             var targetImages = new List<Image>(animatedCells.Count);
             var originalColors = new List<Color>(animatedCells.Count);
+            var cellWaveDelays = new List<float>(animatedCells.Count);
+            float waveDenominator = Mathf.Max(1f, (Grid.Size - 1) * 2f);
             foreach (Vector2Int coord in animatedCells)
             {
                 Image cellImage = cellImages[coord.x, coord.y];
                 targetImages.Add(cellImage);
                 originalColors.Add(cellImage.color);
+                cellWaveDelays.Add(((coord.x + coord.y) / waveDenominator) * maxWaveDelay);
             }
 
+            float totalDuration = baseDuration + maxWaveDelay;
             float elapsedTime = 0f;
-            while (elapsedTime < duration)
+            while (elapsedTime < totalDuration)
             {
-                float progress = elapsedTime / duration;
-                float alpha = 1f - progress;
-                float scale = Mathf.Lerp(1f, finalScale, progress);
                 for (int i = 0; i < targetImages.Count; i++)
                 {
-                    Color baseColor = originalColors[i];
-                    if (dynamic && progress < 0.30f)
+                    float cellElapsed = elapsedTime - cellWaveDelays[i];
+                    if (cellElapsed < 0f) continue;
+                    float cellProgress = Mathf.Clamp01(cellElapsed / baseDuration);
+                    float alpha = 1f - cellProgress;
+
+                    float cellScale;
+                    if (punchPhaseRatio > 0f && cellProgress < punchPhaseRatio)
                     {
-                        float flashAmount = 1f - (progress / 0.30f);
-                        Color flashed = Color.Lerp(baseColor, Color.white, flashAmount);
-                        targetImages[i].color = new Color(flashed.r, flashed.g, flashed.b, alpha);
+                        cellScale = Mathf.Lerp(1f, peakCellScale, cellProgress / punchPhaseRatio);
                     }
                     else
                     {
-                        targetImages[i].color = new Color(baseColor.r, baseColor.g, baseColor.b, alpha);
+                        float postPunchProgress = punchPhaseRatio > 0f
+                            ? (cellProgress - punchPhaseRatio) / (1f - punchPhaseRatio)
+                            : cellProgress;
+                        float startScale = punchPhaseRatio > 0f ? peakCellScale : 1f;
+                        cellScale = Mathf.Lerp(startScale, finalCellScale, postPunchProgress);
                     }
-                    targetImages[i].transform.localScale = Vector3.one * scale;
+
+                    Color baseColor = originalColors[i];
+                    Color displayColor;
+                    if (cellProgress < flashPhaseRatio)
+                    {
+                        float flashAmount = 1f - (cellProgress / flashPhaseRatio);
+                        displayColor = Color.Lerp(baseColor, flashColor, flashAmount);
+                    }
+                    else
+                    {
+                        displayColor = baseColor;
+                    }
+
+                    targetImages[i].color = new Color(displayColor.r, displayColor.g, displayColor.b, alpha);
+                    targetImages[i].transform.localScale = Vector3.one * cellScale;
                 }
                 elapsedTime += Time.deltaTime;
                 yield return null;
